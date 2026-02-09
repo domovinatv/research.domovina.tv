@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_markdown: ^0.7.7+1
   google_fonts: ^8.0.1
+  encrypt: ^5.0.3
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
@@ -60,8 +62,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - mhs-001.en.md
-    - mhs-001.hr.md
+    - assets/mhs-001.en.enc
+    - assets/mhs-001.hr.enc
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

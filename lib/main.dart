@@ -1,21 +1,28 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as enc;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
-// Warm dark tones inspired by Magisterium.com + Christendom.app
-const _bgDeep = Color(0xFF0c0a09); // stone-950
-const _bgSurface = Color(0xFF1c1917); // stone-900
-const _bgSurfaceAlt = Color(0xFF171412); // between 950 and 900
-const _bgCard = Color(0xFF292524); // stone-800
-const _borderSubtle = Color(0xFF44403c); // stone-700
-const _borderFaint = Color(0xFF292524); // stone-800
-const _textPrimary = Color(0xFFfafaf9); // stone-50
-const _textSecondary = Color(0xFFa8a29e); // stone-400
-const _accentGold = Color(0xFFd4a24e); // warm gold
-const _accentGoldMuted = Color(0xFF8b6914); // darker gold
-const _accentGreen = Color(0xFF16a34a); // magisterium green
+const _bgDeep = Color(0xFF0c0a09);
+const _bgSurface = Color(0xFF1c1917);
+const _bgSurfaceAlt = Color(0xFF171412);
+const _bgCard = Color(0xFF292524);
+const _borderSubtle = Color(0xFF44403c);
+const _borderFaint = Color(0xFF292524);
+const _textPrimary = Color(0xFFfafaf9);
+const _textSecondary = Color(0xFFa8a29e);
+const _accentGold = Color(0xFFd4a24e);
+const _accentGoldMuted = Color(0xFF8b6914);
+const _accentGreen = Color(0xFF16a34a);
+const _errorRed = Color(0xFFef4444);
+
+const _marker = 'MHS_OK:';
 
 void main() => runApp(const MhsViewerApp());
 
@@ -38,7 +45,306 @@ class MhsViewerApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const DualMarkdownViewer(),
+      home: const AppShell(),
+    );
+  }
+}
+
+// ── App shell — routes between unlock and viewer ─────────────────────────────
+
+class AppShell extends StatefulWidget {
+  const AppShell({super.key});
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  String? _enContent;
+  String? _hrContent;
+
+  void _onUnlocked(String en, String hr) {
+    setState(() {
+      _enContent = en;
+      _hrContent = hr;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_enContent != null && _hrContent != null) {
+      return DualMarkdownViewer(enMarkdown: _enContent!, hrMarkdown: _hrContent!);
+    }
+    return UnlockScreen(onUnlocked: _onUnlocked);
+  }
+}
+
+// ── Decryption helper ────────────────────────────────────────────────────────
+
+String? _decryptAsset(String base64Data, String passphrase) {
+  try {
+    final keyBytes = sha256.convert(utf8.encode(passphrase)).bytes;
+    final key = enc.Key(Uint8List.fromList(keyBytes));
+    final raw = base64.decode(base64Data);
+    final iv = enc.IV(Uint8List.fromList(raw.sublist(0, 16)));
+    final encrypted = enc.Encrypted(Uint8List.fromList(raw.sublist(16)));
+    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
+    final decrypted = encrypter.decrypt(encrypted, iv: iv);
+    if (!decrypted.startsWith(_marker)) return null;
+    return decrypted.substring(_marker.length);
+  } catch (_) {
+    return null;
+  }
+}
+
+// ── Unlock screen ────────────────────────────────────────────────────────────
+
+class UnlockScreen extends StatefulWidget {
+  final void Function(String en, String hr) onUnlocked;
+  const UnlockScreen({super.key, required this.onUnlocked});
+
+  @override
+  State<UnlockScreen> createState() => _UnlockScreenState();
+}
+
+class _UnlockScreenState extends State<UnlockScreen> {
+  final _controller = TextEditingController();
+  final _focusNode = FocusNode();
+  bool _loading = false;
+  String? _error;
+  bool _obscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _focusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final passphrase = _controller.text.trim();
+    if (passphrase.isEmpty) {
+      setState(() => _error = 'Please enter the access key');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    // Small delay so spinner shows
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    final enRaw = await rootBundle.loadString('assets/mhs-001.en.enc');
+    final hrRaw = await rootBundle.loadString('assets/mhs-001.hr.enc');
+
+    final en = _decryptAsset(enRaw, passphrase);
+    final hr = _decryptAsset(hrRaw, passphrase);
+
+    if (en != null && hr != null) {
+      widget.onUnlocked(en, hr);
+    } else {
+      setState(() {
+        _loading = false;
+        _error = 'Invalid access key';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Gold bar
+                Container(
+                  width: 48,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: _accentGold,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // Title
+                Text(
+                  'DOMOVINA.tv',
+                  style: GoogleFonts.cormorantGaramond(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'RESEARCH DOSSIER',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: _accentGold,
+                    letterSpacing: 3,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                // Card
+                Container(
+                  width: 400,
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: _bgSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _borderSubtle, width: 0.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.lock_outline, size: 18, color: _textSecondary),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Encrypted Document',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Enter the access key to decrypt and view this document.',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: _textSecondary,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Input
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _bgDeep,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _error != null ? _errorRed : _borderSubtle,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _focusNode,
+                          obscureText: _obscure,
+                          onSubmitted: (_) => _submit(),
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: _textPrimary,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Access key',
+                            hintStyle: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: _textSecondary.withValues(alpha: 0.5),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                size: 18,
+                                color: _textSecondary,
+                              ),
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Error
+                      if (_error != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          style: GoogleFonts.inter(fontSize: 12, color: _errorRed),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      // Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _accentGold,
+                            foregroundColor: _bgDeep,
+                            disabledBackgroundColor: _accentGoldMuted,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: _bgDeep,
+                                  ),
+                                )
+                              : Text(
+                                  'Unlock Document',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // Subtle footer
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.shield_outlined, size: 14, color: _textSecondary.withValues(alpha: 0.4)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'AES-256 encrypted  ·  Decrypted in your browser only',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: _textSecondary.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -63,35 +369,27 @@ List<String> _splitBySections(String markdown) {
   return sections;
 }
 
-// ── Main viewer ──────────────────────────────────────────────────────────────
+// ── Dual markdown viewer ─────────────────────────────────────────────────────
 
 class DualMarkdownViewer extends StatefulWidget {
-  const DualMarkdownViewer({super.key});
+  final String enMarkdown;
+  final String hrMarkdown;
+  const DualMarkdownViewer({super.key, required this.enMarkdown, required this.hrMarkdown});
 
   @override
   State<DualMarkdownViewer> createState() => _DualMarkdownViewerState();
 }
 
 class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
-  List<String> _enSections = [];
-  List<String> _hrSections = [];
-  bool _loading = true;
+  late final List<String> _enSections;
+  late final List<String> _hrSections;
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _loadFiles();
-  }
-
-  Future<void> _loadFiles() async {
-    final en = await rootBundle.loadString('mhs-001.en.md');
-    final hr = await rootBundle.loadString('mhs-001.hr.md');
-    setState(() {
-      _enSections = _splitBySections(en);
-      _hrSections = _splitBySections(hr);
-      _loading = false;
-    });
+    _enSections = _splitBySections(widget.enMarkdown);
+    _hrSections = _splitBySections(widget.hrMarkdown);
   }
 
   @override
@@ -102,14 +400,6 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: _accentGold, strokeWidth: 2),
-        ),
-      );
-    }
-
     final sectionCount =
         _enSections.length > _hrSections.length ? _enSections.length : _hrSections.length;
 
@@ -148,7 +438,6 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
       child: Row(
         children: [
-          // Logo / title area
           Expanded(
             child: Row(
               children: [
@@ -190,18 +479,13 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
               ],
             ),
           ),
-          // Column headers
           Expanded(
             flex: 2,
             child: Row(
               children: [
-                Expanded(
-                  child: _ColumnHeader(label: 'ENGLISH', flag: '🇬🇧'),
-                ),
+                const Expanded(child: _ColumnHeader(label: 'ENGLISH', flag: '🇬🇧')),
                 const SizedBox(width: 48),
-                Expanded(
-                  child: _ColumnHeader(label: 'HRVATSKI', flag: '🇭🇷'),
-                ),
+                const Expanded(child: _ColumnHeader(label: 'HRVATSKI', flag: '🇭🇷')),
               ],
             ),
           ),
@@ -234,7 +518,7 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
   }
 }
 
-// ── Column header widget ─────────────────────────────────────────────────────
+// ── Column header ────────────────────────────────────────────────────────────
 
 class _ColumnHeader extends StatelessWidget {
   final String label;
@@ -282,29 +566,20 @@ class _SectionRow extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
-        border: const Border(
-          bottom: BorderSide(color: _borderFaint, width: 0.5),
-        ),
+        border: const Border(bottom: BorderSide(color: _borderFaint, width: 0.5)),
       ),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left gutter with section number
             _SectionGutter(index: index),
-            // English column
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 28, 32, 28),
                 child: _buildMarkdown(context, enContent),
               ),
             ),
-            // Center divider
-            Container(
-              width: 1,
-              color: _borderSubtle.withValues(alpha: 0.4),
-            ),
-            // Croatian column
+            Container(width: 1, color: _borderSubtle.withValues(alpha: 0.4)),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(32, 28, 24, 28),
@@ -341,25 +616,18 @@ class _SectionRow extends StatelessWidget {
         h3Padding: const EdgeInsets.only(top: 8, bottom: 6),
         p: bodyStyle,
         pPadding: const EdgeInsets.only(bottom: 10),
-        strong: bodyStyle.copyWith(
-          fontWeight: FontWeight.w600,
-          color: _textPrimary,
-        ),
+        strong: bodyStyle.copyWith(fontWeight: FontWeight.w600, color: _textPrimary),
         em: bodyStyle.copyWith(fontStyle: FontStyle.italic),
         listBullet: bodyStyle.copyWith(color: _accentGold),
         listBulletPadding: const EdgeInsets.only(right: 8),
         listIndent: 20,
         blockquotePadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         blockquoteDecoration: const BoxDecoration(
-          border: Border(
-            left: BorderSide(color: _accentGold, width: 2),
-          ),
+          border: Border(left: BorderSide(color: _accentGold, width: 2)),
           color: Color(0xFF1a1816),
         ),
         horizontalRuleDecoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: _borderSubtle, width: 0.5),
-          ),
+          border: Border(top: BorderSide(color: _borderSubtle, width: 0.5)),
         ),
         a: bodyStyle.copyWith(
           color: _accentGreen,
