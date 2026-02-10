@@ -108,6 +108,7 @@ class UnlockScreen extends StatefulWidget {
 }
 
 class _UnlockScreenState extends State<UnlockScreen> {
+  final _docIdController = TextEditingController(text: 'mhs-001');
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   final _formKey = GlobalKey();
@@ -145,13 +146,19 @@ class _UnlockScreenState extends State<UnlockScreen> {
   @override
   void dispose() {
     _focusNode.removeListener(_onFocusChange);
+    _docIdController.dispose();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    final docId = _docIdController.text.trim();
     final passphrase = _controller.text.trim();
+    if (docId.isEmpty) {
+      setState(() => _error = 'Please enter the document ID');
+      return;
+    }
     if (passphrase.isEmpty) {
       setState(() => _error = 'Please enter the access key');
       return;
@@ -161,16 +168,23 @@ class _UnlockScreenState extends State<UnlockScreen> {
       _error = null;
     });
     await Future.delayed(const Duration(milliseconds: 100));
-    final enRaw = await rootBundle.loadString('assets/mhs-001.en.enc');
-    final hrRaw = await rootBundle.loadString('assets/mhs-001.hr.enc');
-    final en = _decryptAsset(enRaw, passphrase);
-    final hr = _decryptAsset(hrRaw, passphrase);
-    if (en != null && hr != null) {
-      widget.onUnlocked(en, hr);
-    } else {
+    try {
+      final enRaw = await rootBundle.loadString('assets/$docId.en.enc');
+      final hrRaw = await rootBundle.loadString('assets/$docId.hr.enc');
+      final en = _decryptAsset(enRaw, passphrase);
+      final hr = _decryptAsset(hrRaw, passphrase);
+      if (en != null && hr != null) {
+        widget.onUnlocked(en, hr);
+      } else {
+        setState(() {
+          _loading = false;
+          _error = 'Invalid access key';
+        });
+      }
+    } catch (_) {
       setState(() {
         _loading = false;
-        _error = 'Invalid access key';
+        _error = 'Document "$docId" not found';
       });
     }
   }
@@ -240,10 +254,35 @@ class _UnlockScreenState extends State<UnlockScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'This document is encrypted. Enter the key to view.',
+                            'This document is encrypted. Enter the document ID and key to view.',
                             style: GoogleFonts.inter(fontSize: 13, color: _textSecondary, height: 1.4),
                           ),
                           const SizedBox(height: 20),
+                          TextField(
+                            controller: _docIdController,
+                            onSubmitted: (_) => _focusNode.requestFocus(),
+                            style: GoogleFonts.inter(fontSize: 14, color: _textBody),
+                            decoration: InputDecoration(
+                              hintText: 'Document ID',
+                              hintStyle: GoogleFonts.inter(fontSize: 14, color: _textMuted),
+                              filled: true,
+                              fillColor: _bgPage,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: _border),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: _border),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: _accent, width: 2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           TextField(
                             controller: _controller,
                             focusNode: _focusNode,
