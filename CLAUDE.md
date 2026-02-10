@@ -7,17 +7,19 @@ Content is AES-256-CBC encrypted; user enters a passphrase to decrypt and view s
 ## Key files
 - `lib/main.dart` — entire app (unlock screen, dual markdown viewer, chapter navigation)
 - `tool/encrypt_assets.dart` — CLI to encrypt markdown files into `assets/*.enc`
-- `assets/mhs-001.en.enc`, `assets/mhs-001.hr.enc` — encrypted content
-- `mhs-001.en.md`, `mhs-001.hr.md` — plaintext source (gitignored, never commit)
+- `assets/<doc-id>.en.enc`, `assets/<doc-id>.hr.enc` — encrypted content pairs
+- `<doc-id>.en.md`, `<doc-id>.hr.md` — plaintext source (gitignored, never commit)
+- Current document pairs: `mhs-001` (main research), `sample` (demo/test)
 - `web/index.html` — HTML shell with OG/social meta tags
 - `build/web/_headers` — Cloudflare Pages COOP/COEP headers for WASM
 
 ## Encryption
-Passphrase: shared separately (not stored in repo).
+Each document pair has its own passphrase (shared separately, not stored in repo).
 Encrypt after editing markdown sources:
 ```
-dart run tool/encrypt_assets.dart <passphrase>
+dart run tool/encrypt_assets.dart <doc-id> <passphrase>
 ```
+Example: `dart run tool/encrypt_assets.dart mhs-001 my-secret-key`
 Format: `base64(IV[16 bytes] + ciphertext)`, plaintext prefixed with `MHS_OK:` marker.
 
 ## Build & deploy

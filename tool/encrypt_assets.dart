@@ -1,10 +1,14 @@
 /// Encrypts markdown files with AES-256-CBC using a passphrase.
 ///
 /// Usage:
-///   dart tool/encrypt_assets.dart <passphrase>
+///   dart tool/encrypt_assets.dart <doc-id> <passphrase>
 ///
-/// Reads:  mhs-001.en.md, mhs-001.hr.md
-/// Writes: assets/mhs-001.en.enc, assets/mhs-001.hr.enc
+/// Example:
+///   dart tool/encrypt_assets.dart mhs-001 my-secret-key
+///   dart tool/encrypt_assets.dart sample sample321
+///
+/// Reads:  <doc-id>.en.md, <doc-id>.hr.md
+/// Writes: assets/<doc-id>.en.enc, assets/<doc-id>.hr.enc
 ///
 /// Format of .enc files: base64( IV[16] + ciphertext[...] )
 /// Plaintext is prefixed with "MHS_OK:" for decryption verification.
@@ -19,18 +23,20 @@ import 'package:encrypt/encrypt.dart' as enc;
 const _marker = 'MHS_OK:';
 
 void main(List<String> args) {
-  if (args.isEmpty) {
-    stderr.writeln('Usage: dart tool/encrypt_assets.dart <passphrase>');
+  if (args.length < 2) {
+    stderr.writeln('Usage: dart tool/encrypt_assets.dart <doc-id> <passphrase>');
+    stderr.writeln('Example: dart tool/encrypt_assets.dart mhs-001 my-secret-key');
     exit(1);
   }
 
-  final passphrase = args.join(' ');
+  final docId = args[0];
+  final passphrase = args.sublist(1).join(' ');
   final keyBytes = sha256.convert(utf8.encode(passphrase)).bytes;
   final key = enc.Key.fromBase64(base64.encode(keyBytes));
   final iv = enc.IV.fromSecureRandom(16);
   final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
 
-  const files = ['mhs-001.en.md', 'mhs-001.hr.md'];
+  final files = ['$docId.en.md', '$docId.hr.md'];
 
   for (final file in files) {
     final source = File(file);

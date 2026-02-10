@@ -45,5 +45,5 @@ app.*.map.json
 /android/app/release
 
 # Plaintext source documents (only encrypted .enc versions are committed)
-mhs-001.en.md
-mhs-001.hr.md
+*.en.md
+*.hr.md
