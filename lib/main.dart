@@ -70,10 +70,21 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  void _onLogout() {
+    setState(() {
+      _enContent = null;
+      _hrContent = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_enContent != null && _hrContent != null) {
-      return DualMarkdownViewer(enMarkdown: _enContent!, hrMarkdown: _hrContent!);
+      return DualMarkdownViewer(
+        enMarkdown: _enContent!,
+        hrMarkdown: _hrContent!,
+        onLogout: _onLogout,
+      );
     }
     return UnlockScreen(onUnlocked: _onUnlocked);
   }
@@ -108,7 +119,7 @@ class UnlockScreen extends StatefulWidget {
 }
 
 class _UnlockScreenState extends State<UnlockScreen> {
-  final _docIdController = TextEditingController(text: 'mhs-001');
+  final _docIdController = TextEditingController();
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   final _formKey = GlobalKey();
@@ -120,9 +131,26 @@ class _UnlockScreenState extends State<UnlockScreen> {
   void initState() {
     super.initState();
     _focusNode.addListener(_onFocusChange);
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) _focusNode.requestFocus();
-    });
+    _readUrlParams();
+  }
+
+  void _readUrlParams() {
+    final uri = Uri.base;
+    final doc = uri.queryParameters['doc'];
+    final key = uri.queryParameters['key'];
+    if (doc != null && doc.isNotEmpty) _docIdController.text = doc;
+    if (key != null && key.isNotEmpty) _controller.text = key;
+
+    // Auto-submit if both params provided
+    if (doc != null && doc.isNotEmpty && key != null && key.isNotEmpty) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) _submit();
+      });
+    } else {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
   }
 
   void _onFocusChange() {
@@ -407,7 +435,8 @@ String _stripH1(String markdown) {
 class DualMarkdownViewer extends StatefulWidget {
   final String enMarkdown;
   final String hrMarkdown;
-  const DualMarkdownViewer({super.key, required this.enMarkdown, required this.hrMarkdown});
+  final VoidCallback? onLogout;
+  const DualMarkdownViewer({super.key, required this.enMarkdown, required this.hrMarkdown, this.onLogout});
 
   @override
   State<DualMarkdownViewer> createState() => _DualMarkdownViewerState();
@@ -621,6 +650,16 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
           Container(width: 1, height: 16, color: _border),
           const SizedBox(width: 8),
           Text('Hrvatski', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textSecondary)),
+          if (widget.onLogout != null) ...[
+            const SizedBox(width: 16),
+            IconButton(
+              onPressed: widget.onLogout,
+              icon: const Icon(Icons.logout_rounded, size: 18, color: _textSecondary),
+              tooltip: 'Switch document',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+          ],
         ],
       ),
     );
