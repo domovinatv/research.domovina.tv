@@ -339,6 +339,8 @@ class DualMarkdownViewer extends StatefulWidget {
 class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
   late final List<String> _enSections;
   late final List<String> _hrSections;
+  late final List<String> _sectionTitles;
+  late final List<GlobalKey> _sectionKeys;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -346,6 +348,16 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
     super.initState();
     _enSections = _splitBySections(widget.enMarkdown);
     _hrSections = _splitBySections(widget.hrMarkdown);
+    _sectionKeys = List.generate(
+      _enSections.length > _hrSections.length ? _enSections.length : _hrSections.length,
+      (_) => GlobalKey(),
+    );
+    _sectionTitles = _enSections.map((s) {
+      final match = RegExp(r'^## (.+)$', multiLine: true).firstMatch(s);
+      if (match != null) return match.group(1)!;
+      final h1 = RegExp(r'^# (.+)$', multiLine: true).firstMatch(s);
+      return h1 != null ? h1.group(1)! : 'Introduction';
+    }).toList();
   }
 
   @override
@@ -354,10 +366,17 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
     super.dispose();
   }
 
+  void _scrollToSection(int index) {
+    final key = _sectionKeys[index];
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final sectionCount =
-        _enSections.length > _hrSections.length ? _enSections.length : _hrSections.length;
+    final sectionCount = _sectionKeys.length;
 
     return Scaffold(
       backgroundColor: _bgPage,
@@ -372,6 +391,7 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
               child: Column(
                 children: List.generate(sectionCount, (i) {
                   return _SectionRow(
+                    key: _sectionKeys[i],
                     enContent: i < _enSections.length ? _enSections[i] : '',
                     hrContent: i < _hrSections.length ? _hrSections[i] : '',
                     index: i,
@@ -419,6 +439,41 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
               ),
             ),
           ),
+          const SizedBox(width: 16),
+          // Chapter jump dropdown
+          Container(
+            height: 32,
+            padding: const EdgeInsets.only(left: 12, right: 4),
+            decoration: BoxDecoration(
+              color: _bgPage,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: _border),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: null,
+                hint: Text(
+                  'Jump to section...',
+                  style: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                ),
+                icon: const Icon(Icons.unfold_more, size: 16, color: _textSecondary),
+                isDense: true,
+                style: GoogleFonts.inter(fontSize: 12, color: _textBody),
+                items: List.generate(_sectionTitles.length, (i) {
+                  return DropdownMenuItem(
+                    value: i,
+                    child: Text(
+                      i == 0 ? _sectionTitles[i] : '${i}. ${_sectionTitles[i]}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }),
+                onChanged: (i) {
+                  if (i != null) _scrollToSection(i);
+                },
+              ),
+            ),
+          ),
           const Spacer(),
           Text('English', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textSecondary)),
           const SizedBox(width: 8),
@@ -439,6 +494,7 @@ class _SectionRow extends StatelessWidget {
   final int index;
 
   const _SectionRow({
+    super.key,
     required this.enContent,
     required this.hrContent,
     required this.index,
