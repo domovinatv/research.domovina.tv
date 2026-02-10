@@ -347,6 +347,26 @@ List<String> _splitBySections(String markdown) {
   return sections;
 }
 
+// ── Heading helpers ──────────────────────────────────────────────────────────
+
+String? _extractH1(String markdown) {
+  final match = RegExp(r'^# (.+)$', multiLine: true).firstMatch(markdown);
+  return match?.group(1);
+}
+
+String? _extractH2(String markdown) {
+  final match = RegExp(r'^## (.+)$', multiLine: true).firstMatch(markdown);
+  return match?.group(1);
+}
+
+String _stripH1(String markdown) {
+  return markdown.replaceFirst(RegExp(r'^# .+\n?', multiLine: true), '').trim();
+}
+
+String _stripH2(String markdown) {
+  return markdown.replaceFirst(RegExp(r'^## .+\n?', multiLine: true), '').trim();
+}
+
 // ── Dual markdown viewer ─────────────────────────────────────────────────────
 
 class DualMarkdownViewer extends StatefulWidget {
@@ -364,6 +384,18 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
   late final List<String> _sectionTitles;
   late final List<GlobalKey> _sectionKeys;
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _scrollViewKey = GlobalKey();
+  int _currentSectionIndex = 0;
+
+  // Fixed H1 title (from first section)
+  String? _enH1;
+  String? _hrH1;
+
+  // Per-section stripped content and H2 titles
+  late final List<String> _enStripped;
+  late final List<String> _hrStripped;
+  late final List<String?> _enH2;
+  late final List<String?> _hrH2;
 
   @override
   void initState() {
@@ -380,12 +412,62 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
       final h1 = RegExp(r'^# (.+)$', multiLine: true).firstMatch(s);
       return h1 != null ? h1.group(1)! : 'Introduction';
     }).toList();
+
+    // Extract H1 from first section
+    if (_enSections.isNotEmpty) _enH1 = _extractH1(_enSections[0]);
+    if (_hrSections.isNotEmpty) _hrH1 = _extractH1(_hrSections[0]);
+
+    // Build stripped sections and H2 titles
+    final count = _sectionKeys.length;
+    _enStripped = List<String>.filled(count, '');
+    _hrStripped = List<String>.filled(count, '');
+    _enH2 = List<String?>.filled(count, null);
+    _hrH2 = List<String?>.filled(count, null);
+
+    for (int i = 0; i < count; i++) {
+      final en = i < _enSections.length ? _enSections[i] : '';
+      final hr = i < _hrSections.length ? _hrSections[i] : '';
+      if (i == 0) {
+        _enStripped[i] = _stripH1(en);
+        _hrStripped[i] = _stripH1(hr);
+      } else {
+        _enH2[i] = _extractH2(en);
+        _hrH2[i] = _extractH2(hr);
+        _enStripped[i] = en;
+        _hrStripped[i] = hr;
+      }
+    }
+
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    final scrollCtx = _scrollViewKey.currentContext;
+    if (scrollCtx == null) return;
+    final scrollBox = scrollCtx.findRenderObject() as RenderBox;
+    final scrollTop = scrollBox.localToGlobal(Offset.zero).dy;
+
+    int newIndex = 0;
+    for (int i = _sectionKeys.length - 1; i >= 0; i--) {
+      final ctx = _sectionKeys[i].currentContext;
+      if (ctx == null) continue;
+      final box = ctx.findRenderObject() as RenderBox;
+      final sectionTop = box.localToGlobal(Offset.zero).dy;
+      if (sectionTop <= scrollTop + 10) {
+        newIndex = i;
+        break;
+      }
+    }
+    if (newIndex != _currentSectionIndex) {
+      setState(() => _currentSectionIndex = newIndex);
+    }
   }
 
   void _scrollToSection(int index) {
@@ -405,25 +487,31 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
       body: SafeArea(
         bottom: false,
         child: Column(
-        children: [
-          _buildHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              child: Column(
-                children: List.generate(sectionCount, (i) {
-                  return _SectionRow(
-                    key: _sectionKeys[i],
-                    enContent: i < _enSections.length ? _enSections[i] : '',
-                    hrContent: i < _hrSections.length ? _hrSections[i] : '',
-                    index: i,
-                  );
-                }),
+          children: [
+            _buildHeader(),
+            if (_enH1 != null || _hrH1 != null) _buildH1Bar(),
+            if (_currentSectionIndex > 0 && _enH2[_currentSectionIndex] != null)
+              _buildH2Bar(),
+            Expanded(
+              child: SingleChildScrollView(
+                key: _scrollViewKey,
+                controller: _scrollController,
+                child: Column(
+                  children: [
+                    for (int i = 0; i < sectionCount; i++)
+                      if (_enStripped[i].isNotEmpty || _hrStripped[i].isNotEmpty)
+                        _SectionRow(
+                          key: _sectionKeys[i],
+                          enContent: _enStripped[i],
+                          hrContent: _hrStripped[i],
+                          index: i,
+                        ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -503,6 +591,99 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
           const SizedBox(width: 8),
           Text('Hrvatski', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textSecondary)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildH2Bar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _bgHeader,
+        border: const Border(bottom: BorderSide(color: _border, width: 1)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4, offset: const Offset(0, 2))],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _enH2[_currentSectionIndex] ?? '',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _textTitle,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            Container(width: 1, color: _border),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  _hrH2[_currentSectionIndex] ?? '',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _textTitle,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildH1Bar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: _bgHeader,
+        border: Border(bottom: BorderSide(color: _border, width: 1)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _enH1 ?? '',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: _textTitle,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ),
+            Container(width: 1, color: _border),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  _hrH1 ?? '',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: _textTitle,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
