@@ -110,6 +110,7 @@ class UnlockScreen extends StatefulWidget {
 class _UnlockScreenState extends State<UnlockScreen> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _formKey = GlobalKey();
   bool _loading = false;
   String? _error;
   bool _obscure = true;
@@ -117,13 +118,33 @@ class _UnlockScreenState extends State<UnlockScreen> {
   @override
   void initState() {
     super.initState();
+    _focusNode.addListener(_onFocusChange);
     Future.delayed(const Duration(milliseconds: 300), () {
-      _focusNode.requestFocus();
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus || !mounted) return;
+    // After keyboard appears and Visibility collapses the header,
+    // the scroll position may be stale (especially on web/iPad Safari
+    // where the browser scrolls before Flutter re-layouts).
+    // Wait for the layout to settle, then scroll the form into view.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 400), () {
+        final ctx = _formKey.currentContext;
+        if (ctx != null && mounted) {
+          Scrollable.ensureVisible(ctx,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut);
+        }
+      });
     });
   }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -198,6 +219,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
                   ),
                 ),
                     Container(
+                      key: _formKey,
                       width: 380,
                       padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
