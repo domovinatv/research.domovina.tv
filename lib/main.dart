@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -8,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import 'url_helper.dart' if (dart.library.js_interop) 'url_helper_web.dart';
 
 // ── Palette — clean light theme inspired by YouTube / GitHub ─────────────────
 const _white = Color(0xFFFFFFFF);
@@ -25,21 +26,6 @@ const _accentSubtle = Color(0xFFE8F0FE);
 const _errorRed = Color(0xFFCC0000);
 
 const _marker = 'MHS_OK:';
-
-// ── JS interop for URL manipulation ─────────────────────────────────────────
-
-@JS('window')
-external _Window get _window;
-
-@JS()
-extension type _Window(JSObject _) implements JSObject {
-  external _History get history;
-}
-
-@JS()
-extension type _History(JSObject _) implements JSObject {
-  external void replaceState(JSAny? data, String title, String url);
-}
 
 void main() => runApp(const MhsViewerApp());
 
@@ -158,9 +144,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
     if (key != null && key.isNotEmpty) _controller.text = key;
 
     // Clear URL params after reading so logout doesn't re-trigger auto-submit
-    if (uri.hasQuery) {
-      _window.history.replaceState(null, '', uri.path);
-    }
+    clearUrlParams();
 
     // Auto-submit if both params provided
     if (doc != null && doc.isNotEmpty && key != null && key.isNotEmpty) {
