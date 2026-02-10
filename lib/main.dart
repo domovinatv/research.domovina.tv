@@ -27,10 +27,10 @@ const _errorRed = Color(0xFFCC0000);
 
 const _marker = 'MHS_OK:';
 
-void main() => runApp(const MhsViewerApp());
+void main() => runApp(const DomowinaResearchApp());
 
-class MhsViewerApp extends StatelessWidget {
-  const MhsViewerApp({super.key});
+class DomowinaResearchApp extends StatelessWidget {
+  const DomowinaResearchApp({super.key});
 
   @override
   Widget build(BuildContext context) {
