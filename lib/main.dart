@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -24,6 +25,21 @@ const _accentSubtle = Color(0xFFE8F0FE);
 const _errorRed = Color(0xFFCC0000);
 
 const _marker = 'MHS_OK:';
+
+// ── JS interop for URL manipulation ─────────────────────────────────────────
+
+@JS('window')
+external _Window get _window;
+
+@JS()
+extension type _Window(JSObject _) implements JSObject {
+  external _History get history;
+}
+
+@JS()
+extension type _History(JSObject _) implements JSObject {
+  external void replaceState(JSAny? data, String title, String url);
+}
 
 void main() => runApp(const MhsViewerApp());
 
@@ -140,6 +156,11 @@ class _UnlockScreenState extends State<UnlockScreen> {
     final key = uri.queryParameters['key'];
     if (doc != null && doc.isNotEmpty) _docIdController.text = doc;
     if (key != null && key.isNotEmpty) _controller.text = key;
+
+    // Clear URL params after reading so logout doesn't re-trigger auto-submit
+    if (uri.hasQuery) {
+      _window.history.replaceState(null, '', uri.path);
+    }
 
     // Auto-submit if both params provided
     if (doc != null && doc.isNotEmpty && key != null && key.isNotEmpty) {
