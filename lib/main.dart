@@ -8,19 +8,20 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// ── Palette ──────────────────────────────────────────────────────────────────
-const _bgDeep = Color(0xFF0c0a09);
-const _bgSurface = Color(0xFF1c1917);
-const _bgSurfaceAlt = Color(0xFF171412);
-const _bgCard = Color(0xFF292524);
-const _borderSubtle = Color(0xFF44403c);
-const _borderFaint = Color(0xFF292524);
-const _textPrimary = Color(0xFFfafaf9);
-const _textSecondary = Color(0xFFa8a29e);
-const _accentGold = Color(0xFFd4a24e);
-const _accentGoldMuted = Color(0xFF8b6914);
-const _accentGreen = Color(0xFF16a34a);
-const _errorRed = Color(0xFFef4444);
+// ── Palette — clean light theme inspired by YouTube / GitHub ─────────────────
+const _white = Color(0xFFFFFFFF);
+const _bgPage = Color(0xFFF9F9F9); // YouTube light gray
+const _bgSectionAlt = Color(0xFFFFFFFF);
+const _bgHeader = Color(0xFFFFFFFF);
+const _border = Color(0xFFE5E5E5);
+const _borderLight = Color(0xFFF0F0F0);
+const _textTitle = Color(0xFF0F0F0F); // YouTube title black
+const _textBody = Color(0xFF1A1A1A);
+const _textSecondary = Color(0xFF606060); // YouTube secondary
+const _textMuted = Color(0xFF909090);
+const _accent = Color(0xFF065FD4); // YouTube blue
+const _accentSubtle = Color(0xFFE8F0FE);
+const _errorRed = Color(0xFFCC0000);
 
 const _marker = 'MHS_OK:';
 
@@ -35,13 +36,12 @@ class MhsViewerApp extends StatelessWidget {
       title: 'MHS Dossier — DOMOVINA.tv',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: _bgDeep,
-        colorScheme: const ColorScheme.dark(
-          surface: _bgSurface,
-          primary: _accentGold,
-          secondary: _accentGreen,
-          outline: _borderSubtle,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: _bgPage,
+        colorScheme: const ColorScheme.light(
+          surface: _white,
+          primary: _accent,
+          outline: _border,
         ),
         useMaterial3: true,
       ),
@@ -50,7 +50,7 @@ class MhsViewerApp extends StatelessWidget {
   }
 }
 
-// ── App shell — routes between unlock and viewer ─────────────────────────────
+// ── App shell ────────────────────────────────────────────────────────────────
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -79,7 +79,7 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-// ── Decryption helper ────────────────────────────────────────────────────────
+// ── Decryption ───────────────────────────────────────────────────────────────
 
 String? _decryptAsset(String base64Data, String passphrase) {
   try {
@@ -135,21 +135,15 @@ class _UnlockScreenState extends State<UnlockScreen> {
       setState(() => _error = 'Please enter the access key');
       return;
     }
-
     setState(() {
       _loading = true;
       _error = null;
     });
-
-    // Small delay so spinner shows
     await Future.delayed(const Duration(milliseconds: 100));
-
     final enRaw = await rootBundle.loadString('assets/mhs-001.en.enc');
     final hrRaw = await rootBundle.loadString('assets/mhs-001.hr.enc');
-
     final en = _decryptAsset(enRaw, passphrase);
     final hr = _decryptAsset(hrRaw, passphrase);
-
     if (en != null && hr != null) {
       widget.onUnlocked(en, hr);
     } else {
@@ -162,190 +156,155 @@ class _UnlockScreenState extends State<UnlockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
+    final keyboardUp = MediaQuery.of(context).viewInsets.bottom > 0;
+
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: _bgPage,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Gold bar
-                Container(
-                  width: 48,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: _accentGold,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // Title
-                Text(
-                  'DOMOVINA.tv',
-                  style: GoogleFonts.cormorantGaramond(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: _textPrimary,
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'RESEARCH DOSSIER',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: _accentGold,
-                    letterSpacing: 3,
-                  ),
-                ),
-                const SizedBox(height: 48),
-                // Card
-                Container(
-                  width: 400,
-                  padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(
-                    color: _bgSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _borderSubtle, width: 0.5),
-                  ),
+                // Visibility keeps widgets in tree (no focus loss)
+                // but collapses their space when keyboard is up
+                Visibility(
+                  visible: !keyboardUp,
+                  maintainState: true,
+                  maintainAnimation: true,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Icon(Icons.lock_outline_rounded, size: 48, color: _textMuted),
+                      const SizedBox(height: 24),
+                      Text(
+                        'DOMOVINA.tv',
+                        style: GoogleFonts.inter(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: _textTitle,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Research Dossier',
+                        style: GoogleFonts.inter(fontSize: 14, color: _textSecondary),
+                      ),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+                    Container(
+                      width: 380,
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: _white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.lock_outline, size: 18, color: _textSecondary),
-                          const SizedBox(width: 10),
                           Text(
-                            'Encrypted Document',
+                            'Enter access key',
                             style: GoogleFonts.inter(
-                              fontSize: 14,
+                              fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: _textPrimary,
+                              color: _textTitle,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'This document is encrypted. Enter the key to view.',
+                            style: GoogleFonts.inter(fontSize: 13, color: _textSecondary, height: 1.4),
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            obscureText: _obscure,
+                            onSubmitted: (_) => _submit(),
+                            style: GoogleFonts.inter(fontSize: 14, color: _textBody),
+                            decoration: InputDecoration(
+                              hintText: 'Access key',
+                              hintStyle: GoogleFonts.inter(fontSize: 14, color: _textMuted),
+                              filled: true,
+                              fillColor: _bgPage,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: _error != null ? _errorRed : _border),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: _error != null ? _errorRed : _border),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: _accent, width: 2),
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  size: 20,
+                                  color: _textMuted,
+                                ),
+                                onPressed: () => setState(() => _obscure = !_obscure),
+                              ),
+                            ),
+                          ),
+                          if (_error != null) ...[
+                            const SizedBox(height: 10),
+                            Text(_error!, style: GoogleFonts.inter(fontSize: 12, color: _errorRed)),
+                          ],
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 42,
+                            child: FilledButton(
+                              onPressed: _loading ? null : _submit,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _accent,
+                                disabledBackgroundColor: _accent.withValues(alpha: 0.5),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: _loading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: _white),
+                                    )
+                                  : Text(
+                                      'Unlock',
+                                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                                    ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Enter the access key to decrypt and view this document.',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: _textSecondary,
-                          height: 1.5,
+                    ),
+                    Visibility(
+                      visible: !keyboardUp,
+                      maintainState: true,
+                      maintainAnimation: true,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Text(
+                          'AES-256 encrypted  \u00b7  Decrypted in your browser',
+                          style: GoogleFonts.inter(fontSize: 11, color: _textMuted),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Input
-                      Container(
-                        decoration: BoxDecoration(
-                          color: _bgDeep,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: _error != null ? _errorRed : _borderSubtle,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          obscureText: _obscure,
-                          onSubmitted: (_) => _submit(),
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: _textPrimary,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Access key',
-                            hintStyle: GoogleFonts.inter(
-                              fontSize: 14,
-                              color: _textSecondary.withValues(alpha: 0.5),
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                size: 18,
-                                color: _textSecondary,
-                              ),
-                              onPressed: () => setState(() => _obscure = !_obscure),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Error
-                      if (_error != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          _error!,
-                          style: GoogleFonts.inter(fontSize: 12, color: _errorRed),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      // Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 44,
-                        child: ElevatedButton(
-                          onPressed: _loading ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _accentGold,
-                            foregroundColor: _bgDeep,
-                            disabledBackgroundColor: _accentGoldMuted,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _loading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: _bgDeep,
-                                  ),
-                                )
-                              : Text(
-                                  'Unlock Document',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // Subtle footer
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.shield_outlined, size: 14, color: _textSecondary.withValues(alpha: 0.4)),
-                    const SizedBox(width: 6),
-                    Text(
-                      'AES-256 encrypted  ·  Decrypted in your browser only',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: _textSecondary.withValues(alpha: 0.4),
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+        );
   }
 }
 
@@ -355,7 +314,6 @@ List<String> _splitBySections(String markdown) {
   final lines = markdown.split('\n');
   final sections = <String>[];
   final buffer = StringBuffer();
-
   for (final line in lines) {
     if (line.startsWith('## ') && buffer.isNotEmpty) {
       sections.add(buffer.toString().trim());
@@ -363,9 +321,7 @@ List<String> _splitBySections(String markdown) {
     }
     buffer.writeln(line);
   }
-  if (buffer.isNotEmpty) {
-    sections.add(buffer.toString().trim());
-  }
+  if (buffer.isNotEmpty) sections.add(buffer.toString().trim());
   return sections;
 }
 
@@ -404,7 +360,10 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
         _enSections.length > _hrSections.length ? _enSections.length : _hrSections.length;
 
     return Scaffold(
-      body: Column(
+      backgroundColor: _bgPage,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
         children: [
           _buildHeader(),
           Expanded(
@@ -412,19 +371,17 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
               controller: _scrollController,
               child: Column(
                 children: List.generate(sectionCount, (i) {
-                  final enText = i < _enSections.length ? _enSections[i] : '';
-                  final hrText = i < _hrSections.length ? _hrSections[i] : '';
                   return _SectionRow(
-                    enContent: enText,
-                    hrContent: hrText,
+                    enContent: i < _enSections.length ? _enSections[i] : '',
+                    hrContent: i < _hrSections.length ? _hrSections[i] : '',
                     index: i,
                   );
                 }),
               ),
             ),
           ),
-          _buildFooter(),
         ],
+      ),
       ),
     );
   }
@@ -432,115 +389,44 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
   Widget _buildHeader() {
     return Container(
       decoration: const BoxDecoration(
-        color: _bgSurface,
-        border: Border(bottom: BorderSide(color: _borderSubtle, width: 0.5)),
+        color: _bgHeader,
+        border: Border(bottom: BorderSide(color: _border, width: 1)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: _accentGold,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'DOMOVINA.tv',
-                  style: GoogleFonts.cormorantGaramond(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: _textPrimary,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: _accentGoldMuted, width: 0.5),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'RESEARCH DOSSIER',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: _accentGold,
-                      letterSpacing: 1.8,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                const Expanded(child: _ColumnHeader(label: 'ENGLISH', flag: '🇬🇧')),
-                const SizedBox(width: 48),
-                const Expanded(child: _ColumnHeader(label: 'HRVATSKI', flag: '🇭🇷')),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooter() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: _bgSurface,
-        border: Border(top: BorderSide(color: _borderSubtle, width: 0.5)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Complete Research Dossier',
+            'DOMOVINA.tv',
             style: GoogleFonts.inter(
-              fontSize: 11,
-              color: _textSecondary.withValues(alpha: 0.5),
-              letterSpacing: 0.5,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: _textTitle,
             ),
           ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: _accentSubtle,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'Research Dossier',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: _accent,
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text('English', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textSecondary)),
+          const SizedBox(width: 8),
+          Container(width: 1, height: 16, color: _border),
+          const SizedBox(width: 8),
+          Text('Hrvatski', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textSecondary)),
         ],
       ),
-    );
-  }
-}
-
-// ── Column header ────────────────────────────────────────────────────────────
-
-class _ColumnHeader extends StatelessWidget {
-  final String label;
-  final String flag;
-  const _ColumnHeader({required this.label, required this.flag});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(flag, style: const TextStyle(fontSize: 14)),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: _textSecondary,
-            letterSpacing: 2.0,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -560,30 +446,28 @@ class _SectionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEven = index.isEven;
-    final bgColor = isEven ? _bgDeep : _bgSurfaceAlt;
+    final bg = index.isEven ? _bgPage : _bgSectionAlt;
 
     return Container(
       decoration: BoxDecoration(
-        color: bgColor,
-        border: const Border(bottom: BorderSide(color: _borderFaint, width: 0.5)),
+        color: bg,
+        border: const Border(bottom: BorderSide(color: _borderLight, width: 1)),
       ),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionGutter(index: index),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 28, 32, 28),
-                child: _buildMarkdown(context, enContent),
+                padding: const EdgeInsets.fromLTRB(32, 32, 24, 32),
+                child: _md(context, enContent),
               ),
             ),
-            Container(width: 1, color: _borderSubtle.withValues(alpha: 0.4)),
+            Container(width: 1, color: _border),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(32, 28, 24, 28),
-                child: _buildMarkdown(context, hrContent),
+                padding: const EdgeInsets.fromLTRB(24, 32, 32, 32),
+                child: _md(context, hrContent),
               ),
             ),
           ],
@@ -592,15 +476,14 @@ class _SectionRow extends StatelessWidget {
     );
   }
 
-  Widget _buildMarkdown(BuildContext context, String data) {
-    final headingStyle = GoogleFonts.cormorantGaramond(
-      color: _textPrimary,
-      fontWeight: FontWeight.w700,
-    );
-    final bodyStyle = GoogleFonts.inter(
-      fontSize: 13.5,
-      height: 1.75,
-      color: _textPrimary.withValues(alpha: 0.88),
+  // ── Claude Desktop / GitHub-quality markdown ────────────────────────────
+
+  Widget _md(BuildContext context, String data) {
+    // Body text — optimised for long-form reading
+    final body = GoogleFonts.inter(
+      fontSize: 15,
+      height: 1.8,
+      color: _textBody,
     );
 
     return MarkdownBody(
@@ -608,64 +491,80 @@ class _SectionRow extends StatelessWidget {
       selectable: true,
       fitContent: false,
       styleSheet: MarkdownStyleSheet(
-        h1: headingStyle.copyWith(fontSize: 26),
-        h1Padding: const EdgeInsets.only(bottom: 12),
-        h2: headingStyle.copyWith(fontSize: 22, color: _accentGold),
-        h2Padding: const EdgeInsets.only(bottom: 10),
-        h3: headingStyle.copyWith(fontSize: 17),
-        h3Padding: const EdgeInsets.only(top: 8, bottom: 6),
-        p: bodyStyle,
-        pPadding: const EdgeInsets.only(bottom: 10),
-        strong: bodyStyle.copyWith(fontWeight: FontWeight.w600, color: _textPrimary),
-        em: bodyStyle.copyWith(fontStyle: FontStyle.italic),
-        listBullet: bodyStyle.copyWith(color: _accentGold),
-        listBulletPadding: const EdgeInsets.only(right: 8),
-        listIndent: 20,
-        blockquotePadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        blockquoteDecoration: const BoxDecoration(
-          border: Border(left: BorderSide(color: _accentGold, width: 2)),
-          color: Color(0xFF1a1816),
+        // ── Headings ─────────────────────────────────────────────────
+        // h1: document title — large, bold, breathing room below
+        h1: GoogleFonts.inter(
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          color: _textTitle,
+          height: 1.3,
         ),
-        horizontalRuleDecoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: _borderSubtle, width: 0.5)),
+        h1Padding: const EdgeInsets.only(bottom: 16),
+
+        // h2: part/section — clear separator with top space
+        h2: GoogleFonts.inter(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: _textTitle,
+          height: 1.35,
         ),
-        a: bodyStyle.copyWith(
-          color: _accentGreen,
-          decoration: TextDecoration.underline,
-          decorationColor: _accentGreen.withValues(alpha: 0.4),
-        ),
-        tableHead: bodyStyle.copyWith(fontWeight: FontWeight.w600),
-        tableBody: bodyStyle,
-        tableBorder: TableBorder.all(color: _borderSubtle, width: 0.5),
-        tableHeadAlign: TextAlign.left,
-        tableCellsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-    );
-  }
-}
+        h2Padding: const EdgeInsets.only(bottom: 12),
 
-// ── Section gutter ───────────────────────────────────────────────────────────
-
-class _SectionGutter extends StatelessWidget {
-  final int index;
-  const _SectionGutter({required this.index});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: _borderFaint, width: 0.5)),
-      ),
-      padding: const EdgeInsets.only(top: 28),
-      alignment: Alignment.topCenter,
-      child: Text(
-        index == 0 ? '§' : '$index',
-        style: GoogleFonts.cormorantGaramond(
+        // h3: subsection — medium weight, extra top gap to separate from previous block
+        h3: GoogleFonts.inter(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: _accentGoldMuted,
+          color: _textTitle,
+          height: 1.4,
         ),
+        h3Padding: const EdgeInsets.only(top: 24, bottom: 8),
+
+        // ── Body ─────────────────────────────────────────────────────
+        p: body,
+        pPadding: const EdgeInsets.only(bottom: 16),
+
+        strong: body.copyWith(fontWeight: FontWeight.w600, color: _textTitle),
+        em: body.copyWith(fontStyle: FontStyle.italic),
+
+        // ── Lists — generous spacing like Claude Desktop ─────────────
+        listBullet: body.copyWith(color: _textSecondary),
+        listBulletPadding: const EdgeInsets.only(top: 1, right: 8),
+        listIndent: 24,
+
+        // ── Blockquotes ──────────────────────────────────────────────
+        blockquotePadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        blockquoteDecoration: const BoxDecoration(
+          border: Border(left: BorderSide(color: _border, width: 3)),
+          color: Color(0xFFF6F6F6),
+        ),
+
+        // ── Horizontal rules — subtle like GitHub ────────────────────
+        horizontalRuleDecoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: _border, width: 1)),
+        ),
+
+        // ── Links ────────────────────────────────────────────────────
+        a: body.copyWith(color: _accent, decoration: TextDecoration.none),
+
+        // ── Tables ───────────────────────────────────────────────────
+        tableHead: body.copyWith(fontWeight: FontWeight.w600, fontSize: 13),
+        tableBody: body.copyWith(fontSize: 13),
+        tableBorder: TableBorder.all(color: _border, width: 1),
+        tableHeadAlign: TextAlign.left,
+        tableCellsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+
+        // ── Code ─────────────────────────────────────────────────────
+        code: GoogleFonts.jetBrainsMono(
+          fontSize: 13,
+          color: _textBody,
+          backgroundColor: const Color(0xFFF0F0F0),
+        ),
+        codeblockDecoration: BoxDecoration(
+          color: const Color(0xFFF6F6F6),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: _border),
+        ),
+        codeblockPadding: const EdgeInsets.all(16),
       ),
     );
   }
