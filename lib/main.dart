@@ -294,6 +294,9 @@ class _UnlockScreenState extends State<UnlockScreen> {
                           TextField(
                             controller: _docIdController,
                             onSubmitted: (_) => _focusNode.requestFocus(),
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            textCapitalization: TextCapitalization.none,
                             style: GoogleFonts.inter(fontSize: 14, color: _textBody),
                             decoration: InputDecoration(
                               hintText: 'Document ID',
