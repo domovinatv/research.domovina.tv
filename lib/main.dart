@@ -363,10 +363,6 @@ String _stripH1(String markdown) {
   return markdown.replaceFirst(RegExp(r'^# .+\n?', multiLine: true), '').trim();
 }
 
-String _stripH2(String markdown) {
-  return markdown.replaceFirst(RegExp(r'^## .+\n?', multiLine: true), '').trim();
-}
-
 // ── Dual markdown viewer ─────────────────────────────────────────────────────
 
 class DualMarkdownViewer extends StatefulWidget {
@@ -561,11 +557,7 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<int>(
-                value: null,
-                hint: Text(
-                  'Jump to section...',
-                  style: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
-                ),
+                value: _currentSectionIndex,
                 icon: const Icon(Icons.unfold_more, size: 16, color: _textSecondary),
                 isDense: true,
                 style: GoogleFonts.inter(fontSize: 12, color: _textBody),
