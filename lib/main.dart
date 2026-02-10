@@ -33,7 +33,7 @@ class MhsViewerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MHS Dossier — DOMOVINA.tv',
+      title: 'Research — DOMOVINA.tv',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
@@ -190,7 +190,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Research Dossier',
+                        'Research',
                         style: GoogleFonts.inter(fontSize: 14, color: _textSecondary),
                       ),
                       const SizedBox(height: 40),
@@ -431,7 +431,7 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              'Research Dossier',
+              'Research',
               style: GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,

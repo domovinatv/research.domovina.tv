@@ -85626,7 +85626,7 @@ s.toString
 return B.e.aI(r,s)},
 $S:550}
 A.Ny.prototype={
-R(a){return new A.Bk(B.Al,"MHS Dossier \u2014 DOMOVINA.tv",A.ws(B.a2,B.D9,B.dk,!0),!1,null)}}
+R(a){return new A.Bk(B.Al,"Research \u2014 DOMOVINA.tv",A.ws(B.a2,B.D9,B.dk,!0),!1,null)}}
 A.yw.prototype={
 ap(){return new A.EP()}}
 A.EP.prototype={
@@ -85672,7 +85672,7 @@ if(l!=null&&k!=null)p.a.apK(l,k)
 else p.au(new A.atz(p))
 case 1:return A.S(q,r)}})
 return A.T($async$nW,r)},
-R(a){var s,r=this,q=null,p=!(A.c4(a,q,t.w).w.f.d>0),o=t.E,n=A.aEy(A.mw(A.a([A.a7U(B.FO,B.fF,q,48),B.Pm,A.dx("DOMOVINA.tv",q,q,q,A.eM().$3$color$fontSize$fontWeight(B.cI,24,B.bk),q,q),B.yV,A.dx("Research Dossier",q,q,q,A.eM().$2$color$fontSize(B.cK,14),q,q),B.Pn],o),B.bh,B.cr),!0,!1,!1,!0,p),m=A.fv(12),l=A.awq(B.bv),k=A.dx("Enter access key",q,q,q,A.eM().$3$color$fontSize$fontWeight(B.cI,15,B.bj),q,q),j=A.dx("This document is encrypted. Enter the key to view.",q,q,q,A.eM().$3$color$fontSize$height(B.cK,13,1.4),q,q),i=r.w,h=A.eM().$2$color$fontSize(B.fB,14),g=A.eM().$2$color$fontSize(B.fF,14),f=A.fv(8),e=r.r!=null,d=e?B.iT:B.bv,c=A.fv(8)
+R(a){var s,r=this,q=null,p=!(A.c4(a,q,t.w).w.f.d>0),o=t.E,n=A.aEy(A.mw(A.a([A.a7U(B.FO,B.fF,q,48),B.Pm,A.dx("DOMOVINA.tv",q,q,q,A.eM().$3$color$fontSize$fontWeight(B.cI,24,B.bk),q,q),B.yV,A.dx("Research",q,q,q,A.eM().$2$color$fontSize(B.cK,14),q,q),B.Pn],o),B.bh,B.cr),!0,!1,!1,!0,p),m=A.fv(12),l=A.awq(B.bv),k=A.dx("Enter access key",q,q,q,A.eM().$3$color$fontSize$fontWeight(B.cI,15,B.bj),q,q),j=A.dx("This document is encrypted. Enter the key to view.",q,q,q,A.eM().$3$color$fontSize$height(B.cK,13,1.4),q,q),i=r.w,h=A.eM().$2$color$fontSize(B.fB,14),g=A.eM().$2$color$fontSize(B.fF,14),f=A.fv(8),e=r.r!=null,d=e?B.iT:B.bv,c=A.fv(8)
 e=e?B.iT:B.bv
 s=A.fv(8)
 g=A.aC8(q,new A.h6(4,f,new A.aS(d,1,B.u,-1)),q,B.F4,q,q,q,q,!0,new A.h6(4,c,new A.aS(e,1,B.u,-1)),q,q,q,q,q,B.dk,!0,q,q,q,q,new A.h6(4,s,B.AB),q,q,q,q,q,q,q,q,g,"Access key",q,q,q,q,q,q,q,q,q,!0,!0,q,q,q,q,q,q,q,q,A.aBY(q,A.a7U(r.w?B.FM:B.FN,B.fF,q,20),q,q,new A.atB(r),q,q,q),q,q,q,q,q)
@@ -85751,7 +85751,7 @@ l=n<o.length?o[n]:""
 p===$&&A.b()
 q[n]=new A.WY(l,n<p.length?p[n]:"",n,m)}return A.aDy(B.dk,A.aDx(!1,A.mw(A.a([r,A.a5D(A.axM(A.mw(q,B.bh,B.cr),k.w,null,B.aL),1)],t.E),B.bh,B.cr),!0),null)},
 a4b(){var s,r,q,p,o,n,m,l,k,j=null,i=A.dx("DOMOVINA.tv",j,j,j,A.eM().$3$color$fontSize$fontWeight(B.cI,18,B.bk),j,j),h=A.fv(4)
-h=A.iJ(A.dx("Research Dossier",j,j,j,A.eM().$3$color$fontSize$fontWeight(B.dj,11,B.X),j,j),B.F,j,new A.cW(B.DK,j,j,h,j,j,B.ac),j,j,B.Fk,j)
+h=A.iJ(A.dx("Research",j,j,j,A.eM().$3$color$fontSize$fontWeight(B.dj,11,B.X),j,j),B.F,j,new A.cW(B.DK,j,j,h,j,j,B.ac),j,j,B.Fk,j)
 s=A.fv(6)
 r=A.awq(B.bv)
 q=A.dx("Jump to section...",j,j,j,A.eM().$2$color$fontSize(B.cK,12),j,j)
