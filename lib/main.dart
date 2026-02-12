@@ -623,41 +623,44 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
           ),
           const SizedBox(width: 16),
           // Chapter jump dropdown
-          Container(
-            height: 32,
-            padding: const EdgeInsets.only(left: 12, right: 4),
-            decoration: BoxDecoration(
-              color: _bgPage,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: _border),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                value: _currentSectionIndex,
-                icon: const Icon(Icons.unfold_more, size: 16, color: _textSecondary),
-                isDense: true,
-                style: GoogleFonts.inter(fontSize: 12, color: _textBody),
-                items: List.generate(_sectionTitles.length, (i) {
-                  return DropdownMenuItem(
-                    value: i,
-                    child: Text(
-                      i == 0 ? _sectionTitles[i] : '${i}. ${_sectionTitles[i]}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }),
-                onChanged: (i) {
-                  if (i != null) _scrollToSection(i);
-                },
+          Flexible(
+            child: Container(
+              height: 32,
+              padding: const EdgeInsets.only(left: 12, right: 4),
+              decoration: BoxDecoration(
+                color: _bgPage,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: _border),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _currentSectionIndex,
+                  icon: const Icon(Icons.unfold_more, size: 16, color: _textSecondary),
+                  isDense: true,
+                  isExpanded: true,
+                  style: GoogleFonts.inter(fontSize: 12, color: _textBody),
+                  items: List.generate(_sectionTitles.length, (i) {
+                    return DropdownMenuItem(
+                      value: i,
+                      child: Text(
+                        i == 0 ? _sectionTitles[i] : '${i}. ${_sectionTitles[i]}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }),
+                  onChanged: (i) {
+                    if (i != null) _scrollToSection(i);
+                  },
+                ),
               ),
             ),
           ),
-          const Spacer(),
-          Text('English', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textSecondary)),
           const SizedBox(width: 8),
+          Text('EN', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _textSecondary)),
+          const SizedBox(width: 4),
           Container(width: 1, height: 16, color: _border),
-          const SizedBox(width: 8),
-          Text('Hrvatski', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textSecondary)),
+          const SizedBox(width: 4),
+          Text('HR', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _textSecondary)),
           if (widget.onLogout != null) ...[
             const SizedBox(width: 16),
             IconButton(
