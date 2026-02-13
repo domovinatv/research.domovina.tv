@@ -64,11 +64,16 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   String? _enContent;
   String? _hrContent;
+  // URL-provided initial toggle preferences (null = default/both)
+  String? _initialLang;
+  String? _initialSection;
 
-  void _onUnlocked(String en, String hr) {
+  void _onUnlocked(String en, String hr, {String? lang, String? section}) {
     setState(() {
       _enContent = en;
       _hrContent = hr;
+      _initialLang = lang;
+      _initialSection = section;
     });
   }
 
@@ -76,6 +81,8 @@ class _AppShellState extends State<AppShell> {
     setState(() {
       _enContent = null;
       _hrContent = null;
+      _initialLang = null;
+      _initialSection = null;
     });
   }
 
@@ -86,6 +93,8 @@ class _AppShellState extends State<AppShell> {
         enMarkdown: _enContent!,
         hrMarkdown: _hrContent!,
         onLogout: _onLogout,
+        initialLang: _initialLang,
+        initialSection: _initialSection,
       );
     }
     return UnlockScreen(onUnlocked: _onUnlocked);
@@ -113,7 +122,7 @@ String? _decryptAsset(String base64Data, String passphrase) {
 // ── Unlock screen ────────────────────────────────────────────────────────────
 
 class UnlockScreen extends StatefulWidget {
-  final void Function(String en, String hr) onUnlocked;
+  final void Function(String en, String hr, {String? lang, String? section}) onUnlocked;
   const UnlockScreen({super.key, required this.onUnlocked});
 
   @override
@@ -128,6 +137,9 @@ class _UnlockScreenState extends State<UnlockScreen> {
   bool _loading = false;
   String? _error;
   bool _obscure = true;
+  // Stashed URL params to pass through on unlock
+  String? _urlLang;
+  String? _urlSection;
 
   @override
   void initState() {
@@ -140,6 +152,8 @@ class _UnlockScreenState extends State<UnlockScreen> {
     final uri = Uri.base;
     final doc = uri.queryParameters['doc'];
     final key = uri.queryParameters['key'];
+    _urlLang = uri.queryParameters['lang'];
+    _urlSection = uri.queryParameters['section'];
     if (doc != null && doc.isNotEmpty) _docIdController.text = doc;
     if (key != null && key.isNotEmpty) _controller.text = key;
 
@@ -207,7 +221,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
       final en = _decryptAsset(enRaw, passphrase);
       final hr = _decryptAsset(hrRaw, passphrase);
       if (en != null && hr != null) {
-        widget.onUnlocked(en, hr);
+        widget.onUnlocked(en, hr, lang: _urlLang, section: _urlSection);
       } else {
         setState(() {
           _loading = false;
@@ -444,7 +458,9 @@ class DualMarkdownViewer extends StatefulWidget {
   final String enMarkdown;
   final String hrMarkdown;
   final VoidCallback? onLogout;
-  const DualMarkdownViewer({super.key, required this.enMarkdown, required this.hrMarkdown, this.onLogout});
+  final String? initialLang; // 'en', 'hr', or null (both)
+  final String? initialSection; // 'research', 'podcast', or null (both)
+  const DualMarkdownViewer({super.key, required this.enMarkdown, required this.hrMarkdown, this.onLogout, this.initialLang, this.initialSection});
 
   @override
   State<DualMarkdownViewer> createState() => _DualMarkdownViewerState();
@@ -583,6 +599,24 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
         _podcastFlowStartIndex = i;
         break;
       }
+    }
+
+    // Apply URL-provided initial toggle preferences
+    final lang = widget.initialLang?.toLowerCase();
+    if (lang == 'en') {
+      _showEn = true;
+      _showHr = false;
+    } else if (lang == 'hr') {
+      _showEn = false;
+      _showHr = true;
+    }
+    final section = widget.initialSection?.toLowerCase();
+    if (section == 'research' && _podcastFlowStartIndex > 0) {
+      _showResearch = true;
+      _showPodcast = false;
+    } else if (section == 'podcast' && _podcastFlowStartIndex > 0) {
+      _showResearch = false;
+      _showPodcast = true;
     }
 
     _scrollController.addListener(_onScroll);
