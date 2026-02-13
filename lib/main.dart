@@ -913,14 +913,14 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(_enH2[_currentSectionIndex] ?? '', style: h2Style, overflow: TextOverflow.ellipsis),
+                      child: Align(alignment: Alignment.centerLeft, child: Text(_enH2[_currentSectionIndex] ?? '', style: h2Style, overflow: TextOverflow.ellipsis)),
                     ),
                   ),
                   Container(width: 1, color: _border),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(_hrH2[_currentSectionIndex] ?? '', style: h2Style, overflow: TextOverflow.ellipsis),
+                      child: Align(alignment: Alignment.centerLeft, child: Text(_hrH2[_currentSectionIndex] ?? '', style: h2Style, overflow: TextOverflow.ellipsis)),
                     ),
                   ),
                 ],
@@ -928,10 +928,13 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
             )
           : Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                (_showEn ? _enH2[_currentSectionIndex] : _hrH2[_currentSectionIndex]) ?? '',
-                style: h2Style,
-                overflow: TextOverflow.ellipsis,
+              child: SizedBox(
+                width: double.infinity,
+                child: Text(
+                  (_showEn ? _enH2[_currentSectionIndex] : _hrH2[_currentSectionIndex]) ?? '',
+                  style: h2Style,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
     );
@@ -960,14 +963,14 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(_enH1 ?? '', style: h1Style),
+                      child: Align(alignment: Alignment.centerLeft, child: Text(_enH1 ?? '', style: h1Style)),
                     ),
                   ),
                   Container(width: 1, color: _border),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(_hrH1 ?? '', style: h1Style),
+                      child: Align(alignment: Alignment.centerLeft, child: Text(_hrH1 ?? '', style: h1Style)),
                     ),
                   ),
                 ],
@@ -975,9 +978,12 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
             )
           : Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                (_showEn ? _enH1 : _hrH1) ?? '',
-                style: h1Style,
+              child: SizedBox(
+                width: double.infinity,
+                child: Text(
+                  (_showEn ? _enH1 : _hrH1) ?? '',
+                  style: h1Style,
+                ),
               ),
             ),
     );

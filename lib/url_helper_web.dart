@@ -11,12 +11,14 @@ extension type _Window(JSObject _) implements JSObject {
 
 @JS()
 extension type _History(JSObject _) implements JSObject {
+  external JSAny? get state;
   external void replaceState(JSAny? data, String title, String url);
 }
 
 void clearUrlParams() {
   final uri = Uri.base;
   if (uri.hasQuery) {
-    _window.history.replaceState(null, '', uri.path);
+    // Preserve Flutter's history state to avoid navigation assertion errors
+    _window.history.replaceState(_window.history.state, '', uri.path);
   }
 }
