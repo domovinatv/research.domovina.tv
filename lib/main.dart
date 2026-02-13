@@ -157,17 +157,17 @@ class _UnlockScreenState extends State<UnlockScreen> {
     if (doc != null && doc.isNotEmpty) _docIdController.text = doc;
     if (key != null && key.isNotEmpty) _controller.text = key;
 
-    // Clear URL params after reading so logout doesn't re-trigger auto-submit
-    clearUrlParams();
-
     // Auto-submit if both params provided
     if (doc != null && doc.isNotEmpty && key != null && key.isNotEmpty) {
       Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted) _submit();
+        // Clear URL params after Flutter's history is fully initialized
+        clearUrlParams();
       });
     } else {
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) _focusNode.requestFocus();
+        clearUrlParams();
       });
     }
   }
