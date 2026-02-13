@@ -459,6 +459,70 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
   final GlobalKey _scrollViewKey = GlobalKey();
   int _currentSectionIndex = 0;
 
+  // EN/HR column visibility (at least one must always be true)
+  bool _showEn = true;
+  bool _showHr = true;
+
+  // RESEARCH / PODCAST FLOW section visibility
+  // _podcastFlowStartIndex = first section index that belongs to podcast flow
+  // (-1 means no split detected → toggles hidden, show everything)
+  int _podcastFlowStartIndex = -1;
+  bool _showResearch = true;
+  bool _showPodcast = true;
+
+  void _toggleEn() {
+    setState(() {
+      if (_showEn && !_showHr) return; // can't turn off last one
+      _showEn = !_showEn;
+      if (!_showEn && !_showHr) _showHr = true;
+    });
+  }
+
+  void _toggleHr() {
+    setState(() {
+      if (_showHr && !_showEn) return; // can't turn off last one
+      _showHr = !_showHr;
+      if (!_showEn && !_showHr) _showEn = true;
+    });
+  }
+
+  void _toggleResearch() {
+    setState(() {
+      if (_showResearch && !_showPodcast) return;
+      _showResearch = !_showResearch;
+      if (!_showResearch && !_showPodcast) _showPodcast = true;
+    });
+    _ensureVisibleSection();
+  }
+
+  void _togglePodcast() {
+    setState(() {
+      if (_showPodcast && !_showResearch) return;
+      _showPodcast = !_showPodcast;
+      if (!_showResearch && !_showPodcast) _showResearch = true;
+    });
+    _ensureVisibleSection();
+  }
+
+  bool _isSectionVisible(int i) {
+    if (_podcastFlowStartIndex < 0) return true; // no split → all visible
+    if (i < _podcastFlowStartIndex) return _showResearch;
+    return _showPodcast;
+  }
+
+  void _ensureVisibleSection() {
+    if (_isSectionVisible(_currentSectionIndex)) return;
+    // Current section hidden — jump to first visible one
+    for (int i = 0; i < _sectionKeys.length; i++) {
+      if (_isSectionVisible(i)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToSection(i);
+        });
+        return;
+      }
+    }
+  }
+
   // Fixed H1 title (from first section)
   String? _enH1;
   String? _hrH1;
@@ -507,6 +571,17 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
         _hrH2[i] = _extractH2(hr);
         _enStripped[i] = en;
         _hrStripped[i] = hr;
+      }
+    }
+
+    // Detect podcast flow boundary: "## BLOCK 1" (EN) or "## BLOK 1" (HR)
+    final blockPattern = RegExp(r'^## BLOC?K 1\b', caseSensitive: false);
+    for (int i = 1; i < count; i++) {
+      final en = i < _enSections.length ? _enSections[i] : '';
+      final hr = i < _hrSections.length ? _hrSections[i] : '';
+      if (blockPattern.hasMatch(en) || blockPattern.hasMatch(hr)) {
+        _podcastFlowStartIndex = i;
+        break;
       }
     }
 
@@ -562,7 +637,7 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
           children: [
             _buildHeader(),
             if (_enH1 != null || _hrH1 != null) _buildH1Bar(),
-            if (_currentSectionIndex > 0 && _enH2[_currentSectionIndex] != null)
+            if (_currentSectionIndex > 0 && _enH2[_currentSectionIndex] != null && _isSectionVisible(_currentSectionIndex))
               _buildH2Bar(),
             Expanded(
               child: SingleChildScrollView(
@@ -571,12 +646,14 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
                 child: Column(
                   children: [
                     for (int i = 0; i < sectionCount; i++)
-                      if (_enStripped[i].isNotEmpty || _hrStripped[i].isNotEmpty)
+                      if ((_enStripped[i].isNotEmpty || _hrStripped[i].isNotEmpty) && _isSectionVisible(i))
                         _SectionRow(
                           key: _sectionKeys[i],
                           enContent: _enStripped[i],
                           hrContent: _hrStripped[i],
                           index: i,
+                          showEn: _showEn,
+                          showHr: _showHr,
                         ),
                   ],
                 ),
@@ -588,14 +665,79 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: _bgHeader,
-        border: Border(bottom: BorderSide(color: _border, width: 1)),
+  Widget _buildLangToggle(String label, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: active ? _accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: active ? _accent : _border),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: active ? _white : _textMuted,
+          ),
+        ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Row(
+    );
+  }
+
+  Widget _buildChapterDropdown() {
+    // Only show visible sections in dropdown
+    final visibleItems = <DropdownMenuItem<int>>[];
+    int? dropdownValue;
+    for (int i = 0; i < _sectionTitles.length; i++) {
+      if (!_isSectionVisible(i)) continue;
+      visibleItems.add(DropdownMenuItem(
+        value: i,
+        child: Text(
+          i == 0 ? _sectionTitles[i] : '${i}. ${_sectionTitles[i]}',
+          overflow: TextOverflow.ellipsis,
+        ),
+      ));
+      // Pick closest visible section as dropdown value
+      if (dropdownValue == null || (i <= _currentSectionIndex && _isSectionVisible(i))) {
+        dropdownValue = i;
+      }
+    }
+
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.only(left: 12, right: 4),
+      decoration: BoxDecoration(
+        color: _bgPage,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: _border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: dropdownValue,
+          icon: const Icon(Icons.unfold_more, size: 16, color: _textSecondary),
+          isDense: true,
+          isExpanded: true,
+          style: GoogleFonts.inter(fontSize: 12, color: _textBody),
+          items: visibleItems,
+          onChanged: (i) {
+            if (i != null) _scrollToSection(i);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return LayoutBuilder(builder: (context, constraints) {
+      final narrow = constraints.maxWidth < 600;
+
+      final brand = Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             'DOMOVINA.tv',
@@ -621,62 +763,107 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          // Chapter jump dropdown
-          Flexible(
-            child: Container(
-              height: 32,
-              padding: const EdgeInsets.only(left: 12, right: 4),
-              decoration: BoxDecoration(
-                color: _bgPage,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: _border),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: _currentSectionIndex,
-                  icon: const Icon(Icons.unfold_more, size: 16, color: _textSecondary),
-                  isDense: true,
-                  isExpanded: true,
-                  style: GoogleFonts.inter(fontSize: 12, color: _textBody),
-                  items: List.generate(_sectionTitles.length, (i) {
-                    return DropdownMenuItem(
-                      value: i,
-                      child: Text(
-                        i == 0 ? _sectionTitles[i] : '${i}. ${_sectionTitles[i]}',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }),
-                  onChanged: (i) {
-                    if (i != null) _scrollToSection(i);
-                  },
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text('EN', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _textSecondary)),
+        ],
+      );
+
+      final langToggles = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildLangToggle('EN', _showEn, _toggleEn),
           const SizedBox(width: 4),
-          Container(width: 1, height: 16, color: _border),
-          const SizedBox(width: 4),
-          Text('HR', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _textSecondary)),
-          if (widget.onLogout != null) ...[
-            const SizedBox(width: 16),
-            IconButton(
+          _buildLangToggle('HR', _showHr, _toggleHr),
+        ],
+      );
+
+      final sectionToggles = _podcastFlowStartIndex > 0
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildLangToggle('Research', _showResearch, _toggleResearch),
+                const SizedBox(width: 4),
+                _buildLangToggle('Podcast', _showPodcast, _togglePodcast),
+              ],
+            )
+          : null;
+
+      final logout = widget.onLogout != null
+          ? IconButton(
               onPressed: widget.onLogout,
               icon: const Icon(Icons.logout_rounded, size: 18, color: _textSecondary),
               tooltip: 'Switch document',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            ),
+            )
+          : const SizedBox.shrink();
+
+      if (narrow) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: _bgHeader,
+            border: Border(bottom: BorderSide(color: _border, width: 1)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  brand,
+                  const Spacer(),
+                  langToggles,
+                  const SizedBox(width: 8),
+                  logout,
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: _buildChapterDropdown()),
+                  if (sectionToggles != null) ...[
+                    const SizedBox(width: 8),
+                    sectionToggles,
+                  ],
+                ],
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Container(
+        decoration: const BoxDecoration(
+          color: _bgHeader,
+          border: Border(bottom: BorderSide(color: _border, width: 1)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Row(
+          children: [
+            brand,
+            const SizedBox(width: 16),
+            Flexible(child: _buildChapterDropdown()),
+            if (sectionToggles != null) ...[
+              const SizedBox(width: 8),
+              sectionToggles,
+            ],
+            const SizedBox(width: 8),
+            langToggles,
+            if (widget.onLogout != null) ...[
+              const SizedBox(width: 16),
+              logout,
+            ],
           ],
-        ],
-      ),
-    );
+        ),
+      );
+    });
   }
 
   Widget _buildH2Bar() {
+    final h2Style = GoogleFonts.inter(
+      fontSize: 15,
+      fontWeight: FontWeight.w700,
+      color: _textTitle,
+    );
+    final bothVisible = _showEn && _showHr;
+
     return Container(
       decoration: BoxDecoration(
         color: _bgHeader,
@@ -684,88 +871,81 @@ class _DualMarkdownViewerState extends State<DualMarkdownViewer> {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4, offset: const Offset(0, 2))],
       ),
       padding: const EdgeInsets.symmetric(vertical: 10),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  _enH2[_currentSectionIndex] ?? '',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: _textTitle,
+      child: bothVisible
+          ? IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(_enH2[_currentSectionIndex] ?? '', style: h2Style, overflow: TextOverflow.ellipsis),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  Container(width: 1, color: _border),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(_hrH2[_currentSectionIndex] ?? '', style: h2Style, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                (_showEn ? _enH2[_currentSectionIndex] : _hrH2[_currentSectionIndex]) ?? '',
+                style: h2Style,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            Container(width: 1, color: _border),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  _hrH2[_currentSectionIndex] ?? '',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: _textTitle,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildH1Bar() {
+    final h1Style = GoogleFonts.inter(
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
+      color: _textTitle,
+      height: 1.3,
+    );
+    final bothVisible = _showEn && _showHr;
+
     return Container(
       decoration: const BoxDecoration(
         color: _bgHeader,
         border: Border(bottom: BorderSide(color: _border, width: 1)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  _enH1 ?? '',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: _textTitle,
-                    height: 1.3,
+      child: bothVisible
+          ? IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(_enH1 ?? '', style: h1Style),
+                    ),
                   ),
-                ),
+                  Container(width: 1, color: _border),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(_hrH1 ?? '', style: h1Style),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                (_showEn ? _enH1 : _hrH1) ?? '',
+                style: h1Style,
               ),
             ),
-            Container(width: 1, color: _border),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  _hrH1 ?? '',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: _textTitle,
-                    height: 1.3,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -776,43 +956,53 @@ class _SectionRow extends StatelessWidget {
   final String enContent;
   final String hrContent;
   final int index;
+  final bool showEn;
+  final bool showHr;
 
   const _SectionRow({
     super.key,
     required this.enContent,
     required this.hrContent,
     required this.index,
+    required this.showEn,
+    required this.showHr,
   });
 
   @override
   Widget build(BuildContext context) {
     final bg = index.isEven ? _bgPage : _bgSectionAlt;
+    final bothVisible = showEn && showHr;
 
     return Container(
       decoration: BoxDecoration(
         color: bg,
         border: const Border(bottom: BorderSide(color: _borderLight, width: 1)),
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(32, 32, 24, 32),
-                child: _md(context, enContent),
+      child: bothVisible
+          ? IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(32, 32, 24, 32),
+                      child: _md(context, enContent),
+                    ),
+                  ),
+                  Container(width: 1, color: _border),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 32, 32, 32),
+                      child: _md(context, hrContent),
+                    ),
+                  ),
+                ],
               ),
+            )
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(32, 32, 32, 32),
+              child: _md(context, showEn ? enContent : hrContent),
             ),
-            Container(width: 1, color: _border),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 32, 32, 32),
-                child: _md(context, hrContent),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
